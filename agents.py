@@ -47,9 +47,8 @@ class DQN_transmit_agent():
 
     def choose_action(self, state, epsilon):
         """Implements an epsilon-greedy policy"""
-        history = state
+        history = np.array(state)
         current_energy, slient_time = state
-        state = tf.convert_to_tensor(state)
 
         # Explore ?
         if np.random.default_rng().uniform(size=1)[0] < epsilon:
@@ -58,12 +57,13 @@ class DQN_transmit_agent():
 
         # Exploit - Choose the current best action
         else:
-            #DQN_input = tf.concat(history, axis=0)[tf.newaxis, :]  # Create a state vector, which is the DQN input.
-            outputs = self.DQN_online(state).numpy()  # Get the predicted Q values corresponding to the 2 actions
+            DQN_input = tf.concat(history, axis=0)[tf.newaxis, :]  # Create a state vector, which is the DQN input.
+            outputs = self.DQN_online(DQN_input).numpy()  # Get the predicted Q values corresponding to the 2 actions
             action = np.argmax(outputs)  # Take the action that has the highest predicted Q value (0, 1)
 
         if current_energy < self.MINIMAL_CHARGE:
             action = 0
+
         return action , action
 
     def learn(self, batch_size):

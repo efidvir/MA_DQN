@@ -44,15 +44,15 @@ agent_type = 'DQN'
 #Global parameters
 number_of_iterations = 5000000
 force_policy_flag = True
-number_of_agents = 100
+number_of_agents = 10
 np.random.seed(0)
 
 #model
-MAX_SILENT_TIME = 200
+MAX_SILENT_TIME = 20
 SILENT_THRESHOLD = 1
-BATTERY_SIZE = 200
-DISCHARGE = 99
-MINIMAL_CHARGE = 0
+BATTERY_SIZE = 20
+DISCHARGE = 9
+MINIMAL_CHARGE = 9
 CHARGE = 1
 number_of_actions = 2
 
