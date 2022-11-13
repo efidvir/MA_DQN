@@ -21,28 +21,32 @@ class DQN_transmit_agent():
         self.state_space = np.empty([battery_size, max_silence_time])
         self.state_space_size = self.state_space.ndim
         #@TODO 'one hot state space'
-        self.history_length = 100
+        self.history_length = 1000
         self.history = [[] for i in range(self.history_length)]
         self.history_idx = 0
-        self.batch_size = 10
+        self.batch_size = 1000
 
         # Create and initialize the online DQN
         self.DQN_online = tf.keras.models.Sequential(
-            [Dense(self.state_space_size, activation='relu'), Dense(self.state_space_size , activation='relu'),
-             Dense(self.number_of_actions, activation='softplus')  # Outputs positive values
+            [Dense(self.state_space_size, activation='relu'), Dense(2*self.state_space_size , activation='relu'),
+             Dense(self.number_of_actions, activation='softmax')  # Outputs positive values
              ])
         self.DQN_online.build(input_shape=(None, self.state_space_size))  # Build the model to create the weights
 
         # Create and initialize the offline DQN
         self.DQN_offline = tf.keras.models.Sequential(
-            [Dense(self.state_space_size, activation='relu'), Dense(self.state_space_size , activation='relu'),
-             Dense(self.number_of_actions, activation='softplus')  # Outputs positive values
+            [Dense(self.state_space_size, activation='relu'), Dense(2*self.state_space_size , activation='relu'),
+             Dense(self.number_of_actions, activation='softmax')  # Outputs positive values
              ])
         self.DQN_offline.build(input_shape=(None, self.state_space_size))  # Build the model to create the weights
 
         self.copy_parameters()  # Copy the weights of the online network to the offline network
 
         self.loss_func = tf.keras.losses.MSE
+        #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        #    initial_learning_rate=self.alpha,
+        #    decay_steps=50000,
+        #    decay_rate= 0.99995)
         self.optimizer = tf.keras.optimizers.Adam(self.alpha)
 
     def choose_action(self, state, epsilon):
@@ -70,7 +74,9 @@ class DQN_transmit_agent():
         """Sample experiences from the history and performs SGD"""
 
         # Samples random experiences from the history
-        idx = np.random.choice(range(self.history_length), batch_size, replace=False)  # Create random indexes
+        #idx = np.random.choice(range(self.history_length), batch_size, replace=False)  # Create random indexes
+        idx = range(self.history_length)  # Create random indexes
+
         rdm_exp = [self.history[i] for i in idx]  # Take experiences corresponding to the random indexes
 
         # Create 4 batches : states_vec, actions, rewards, new states_vec
@@ -82,7 +88,6 @@ class DQN_transmit_agent():
 
         # Compute the best q_value for the new states
         max_n_q_values = tf.reduce_max(self.DQN_offline(n_states_vec), axis=1).numpy()
-
         with tf.GradientTape() as tape:
             # Forward pass through the online network to predict the q_values
             pred_q_values = self.DQN_online(states_vec)
@@ -118,9 +123,9 @@ class DQN_transmit_agent():
         weights = self.DQN_online.get_weights()
         self.DQN_offline.set_weights(weights)
 
-    def step(self, state, reward, action,transmit_or_wait, new_state, epsilon):
+    def step(self, state, reward, action,transmit_or_wait, new_state, epsilon, iteration):
         self.insert_history(state, action, reward, new_state)
-        if [] not in self.history:
+        if [] not in self.history and iteration % self.history_length == 0:
             self.learn(self.batch_size)
         action , transmit_or_wait = self.choose_action(new_state, epsilon)
         return action , transmit_or_wait

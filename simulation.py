@@ -2,7 +2,7 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
+import tensorflow as tf
 import numpy as np
 import gym
 from gym import spaces
@@ -44,15 +44,15 @@ agent_type = 'DQN'
 #Global parameters
 number_of_iterations = 5000000
 force_policy_flag = True
-number_of_agents = 10
+number_of_agents = 4
 np.random.seed(0)
 
 #model
-MAX_SILENT_TIME = 20
+MAX_SILENT_TIME = 10
 SILENT_THRESHOLD = 1
-BATTERY_SIZE = 20
-DISCHARGE = 9
-MINIMAL_CHARGE = 9
+BATTERY_SIZE = 10
+DISCHARGE = 3
+MINIMAL_CHARGE = 3
 CHARGE = 1
 number_of_actions = 2
 
@@ -60,11 +60,13 @@ number_of_actions = 2
 GAMMA = 0.9
 ALPHA = 0.01
 #P_LOSS = 0
-decay_rate = 0.999999
+decay_rate = 0.9999995
 
 #for rendering
 DATA_SIZE = 10
-
+visible_devices = tf.config.get_visible_devices()
+for devices in visible_devices:
+  print(devices)
 '''run realtime experiences'''
 #T = [[] for i in range(number_of_agents)]
 #for i in range(number_of_agents):
@@ -73,6 +75,21 @@ policies = [[] for i in range(number_of_agents)]
 values = [[] for i in range(number_of_agents)]
 #pol_t = np.ndarray(shape=(number_of_iterations, number_of_agents, BATTERY_SIZE, MAX_SILENT_TIME))
 #val_t = np.ndarray(shape=(number_of_iterations, number_of_agents, BATTERY_SIZE, MAX_SILENT_TIME))
+
+
+gpus = tf.config.list_physical_devices('GPU')
+for gpu in gpus:
+    print("Name:", gpu.name, "  Type:", gpu.device_type)
+if gpus:
+  # Restrict TensorFlow to only use the first GPU
+  try:
+    tf.config.set_visible_devices(gpus[0], 'GPU')
+    logical_gpus = tf.config.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+    print("Using  ", len(tf.config.list_physical_devices('GPU'))," Available GPUs")
+  except RuntimeError as e:
+    # Visible devices must be set before GPUs have been initialized
+    print(e)
 
 occupied = 0
 epsilon = np.ones(number_of_agents)
@@ -87,7 +104,7 @@ score = [[] for i in range(number_of_agents)]
 RAND = [[np.random.randint(10000)] for i in range(number_of_agents)]
 
 for i in range(number_of_agents):
-    #epsilon[i] = epsilon[i] -1/(number_of_agents+i)
+    epsilon[i] = epsilon[i] -1/(number_of_agents+i)
     env[i] = transmit_env(BATTERY_SIZE, MAX_SILENT_TIME, (i+3), MINIMAL_CHARGE, DISCHARGE, CHARGE, DATA_SIZE, number_of_actions)
     if agent_type == 'Q_Learning':
         agent[i] = Q_transmit_agent(ALPHA, GAMMA, BATTERY_SIZE, MAX_SILENT_TIME, DATA_SIZE, number_of_actions, MINIMAL_CHARGE,RAND[i])
@@ -133,21 +150,11 @@ for i in range(number_of_iterations):
         score[j].append(reward)
         np.random.seed(j)
         #print('Agent ', j)
-        actions[j], transmit_or_wait_s[j] = agent[j].step(env[j].state, reward, actions[j], transmit_or_wait_s[j], env[j].new_state, epsilon[j])
-
-    if i % 100 == 0:
-        print('step: ', i, '100 steps AVG mean score: ',np.mean(score[0][-100:-1]))
-
-    # collect state transitions in T
-    for j in range(number_of_agents):
-        #print(env[j].state, env[j].new_state)
-        # decompose state
-        #current_energy, slient_time = env[j].state
-        # decompose new state
-        #next_energy, next_silence = env[j].new_state
-        # print(current_energy, slient_time,'->',next_energy, next_silence , '~~~', current_energy*(BATTERY_SIZE-1)+slient_time, next_energy*(BATTERY_SIZE-1)+next_silence)
-        #T[j][current_energy * (BATTERY_SIZE) + slient_time, next_energy * (BATTERY_SIZE) + next_silence] += 1
+        actions[j], transmit_or_wait_s[j] = agent[j].step(env[j].state, reward, actions[j], transmit_or_wait_s[j], env[j].new_state, epsilon[j],i)
         epsilon[j] = epsilon[j] * decay_rate
+    if i % 100 == 0:
+        print('step: ', i, '100 steps AVG mean score: ',np.mean(score[0][-100:-1]),epsilon[0])
+
         #draw.render_Q_diffs(agent[j].Q[:, :, 0], agent[j].Q[:, :, 1], j,i,env[j].state)
     #Q_tables[i] = np.array(agent[0].Q[:][:][0])
     #render_policy_visits_table(get_policy(0), agent[0].state_visits)
@@ -203,10 +210,7 @@ for i in range(num_of_eval_iner):
     for a in range(number_of_agents):
         new_state, reward, occupied = env[a].time_step(actions[a],transmit_or_wait_s[a], sum(transmit_or_wait_s), ack)  # CHANNEL
         env[a].new_state = new_state
-
-    for a in range(number_of_agents):
-        # print(env.state, env,new_state)
-        actions[a] ,transmit_or_wait_s[a] = agent[a].step(env[a].state, reward, actions[a],transmit_or_wait_s[a], env[a].new_state, epsilon[a])
+        actions[a] ,transmit_or_wait_s[a] = agent[a].step(env[a].state, reward, actions[a],transmit_or_wait_s[a], env[a].new_state, epsilon[a],i)
 
     for a in range(number_of_agents):
         # decompose state
