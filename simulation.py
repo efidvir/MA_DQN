@@ -42,17 +42,17 @@ draw = render()
 agent_type = 'DQN'
 
 #Global parameters
-number_of_iterations = 5000000
+number_of_iterations = 500000
 force_policy_flag = True
-number_of_agents = 4
+number_of_agents = 10
 np.random.seed(0)
 
 #model
-MAX_SILENT_TIME = 10
+MAX_SILENT_TIME = 20
 SILENT_THRESHOLD = 1
-BATTERY_SIZE = 10
-DISCHARGE = 3
-MINIMAL_CHARGE = 3
+BATTERY_SIZE = 20
+DISCHARGE = 9
+MINIMAL_CHARGE = 9
 CHARGE = 1
 number_of_actions = 2
 
@@ -60,7 +60,7 @@ number_of_actions = 2
 GAMMA = 0.9
 ALPHA = 0.01
 #P_LOSS = 0
-decay_rate = 0.9999995
+decay_rate = 0.999995
 
 #for rendering
 DATA_SIZE = 10
@@ -152,8 +152,14 @@ for i in range(number_of_iterations):
         #print('Agent ', j)
         actions[j], transmit_or_wait_s[j] = agent[j].step(env[j].state, reward, actions[j], transmit_or_wait_s[j], env[j].new_state, epsilon[j],i)
         epsilon[j] = epsilon[j] * decay_rate
-    if i % 100 == 0:
-        print('step: ', i, '100 steps AVG mean score: ',np.mean(score[0][-100:-1]),epsilon[0])
+
+    if i % 1000 == 0:
+        print('step: ', i, '1000 steps AVG mean score: ',np.mean(score[0][-1000:-1]),epsilon[0])
+        for j in range(number_of_agents):
+            agent[j].copy_parameters()
+            agent[j].update_Q()
+            draw.render_Q_diffs(agent[j].Q[:, :, 0], agent[j].Q[:, :, 1], j, i, env[j].state)
+
 
         #draw.render_Q_diffs(agent[j].Q[:, :, 0], agent[j].Q[:, :, 1], j,i,env[j].state)
     #Q_tables[i] = np.array(agent[0].Q[:][:][0])

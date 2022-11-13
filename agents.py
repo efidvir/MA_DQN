@@ -13,7 +13,7 @@ class DQN_transmit_agent():
         self.gamma = gamma
         self.data_size = data_size
         self.number_of_actions = number_of_actions
-        #self.Q = np.zeros(shape=(battery_size, max_silence_time, self.number_of_actions))
+        self.Q = np.zeros(shape=(battery_size, max_silence_time, self.number_of_actions))
         #self.state_visits = np.zeros(shape=(battery_size, max_silence_time))
         #self.error = np.zeros(shape=(battery_size, max_silence_time, self.number_of_actions))
         self.MINIMAL_CHARGE = MINIMAL_CHARGE
@@ -21,22 +21,22 @@ class DQN_transmit_agent():
         self.state_space = np.empty([battery_size, max_silence_time])
         self.state_space_size = self.state_space.ndim
         #@TODO 'one hot state space'
-        self.history_length = 1000
+        self.history_length = 10
         self.history = [[] for i in range(self.history_length)]
         self.history_idx = 0
-        self.batch_size = 1000
+        self.batch_size = 10
 
         # Create and initialize the online DQN
         self.DQN_online = tf.keras.models.Sequential(
-            [Dense(self.state_space_size, activation='relu'), Dense(2*self.state_space_size , activation='relu'),
-             Dense(self.number_of_actions, activation='softmax')  # Outputs positive values
+            [Dense(self.state_space_size, activation='tanh'), Dense(2*self.state_space_size , activation='tanh'),
+             Dense(self.number_of_actions, activation='softplus')  # Outputs positive values
              ])
         self.DQN_online.build(input_shape=(None, self.state_space_size))  # Build the model to create the weights
 
         # Create and initialize the offline DQN
         self.DQN_offline = tf.keras.models.Sequential(
-            [Dense(self.state_space_size, activation='relu'), Dense(2*self.state_space_size , activation='relu'),
-             Dense(self.number_of_actions, activation='softmax')  # Outputs positive values
+            [Dense(self.state_space_size, activation='tanh'), Dense(2*self.state_space_size , activation='tanh'),
+             Dense(self.number_of_actions, activation='softplus')  # Outputs positive values
              ])
         self.DQN_offline.build(input_shape=(None, self.state_space_size))  # Build the model to create the weights
 
@@ -51,7 +51,7 @@ class DQN_transmit_agent():
 
     def choose_action(self, state, epsilon):
         """Implements an epsilon-greedy policy"""
-        history = np.array(state)
+        history = state
         current_energy, slient_time = state
 
         # Explore ?
@@ -144,6 +144,15 @@ class DQN_transmit_agent():
                 state_value[energy, time] = self.Q[energy, time, int(policy[energy, time])]
         return state_value
 
+    def update_Q(self):
+        Q = np.zeros(shape=(self.Q.shape[0], self.Q.shape[1], self.number_of_actions))
+        for energy in range(self.Q.shape[0]):
+            for time in range(self.Q.shape[1]):
+                DQN_input = tf.concat([energy,time], axis=0)[tf.newaxis, :]
+                Q[energy, time,0] = self.DQN_online(DQN_input).numpy()[0][0]
+                Q[energy, time, 1] = self.DQN_online(DQN_input).numpy()[0][1]
+        self.Q = Q
+        return
 class Q_transmit_agent():
     def __init__(self, alpha, gamma, battery_size, max_silence_time, data_size, number_of_actions,MINIMAL_CHARGE,RAND):
         self.alpha = alpha

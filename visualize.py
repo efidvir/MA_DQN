@@ -57,7 +57,7 @@ class render():
         plt.show()
 
     def render_Q_diffs(self, Q1, Q2, agent_num,iteration,state):
-        path = 'C:/Users/dvire/PycharmProjects/MA_QL/images/'
+        path = 'C:/Users/EFI/PycharmProjects/MA-DQN/images'
         screen = pygame.display.set_mode((Q1.shape[0] * 100, Q1.shape[1] * 100))
         diff = (Q1 - Q2)
         diff_pos = diff - np.min(diff)  # shift to posetive
@@ -108,7 +108,7 @@ class render():
         #out.release()
 
     def render_Q(self, Q1, Q2, agent_num,iteration,state):
-        #path = 'C:/Users/dvire/PycharmProjects/MA_QL/images/'
+        #path = 'C:/Users/dvire/PycharmProjects/MA-DQN/images/'
         screen = pygame.display.set_mode((Q1.shape[0] * 100, Q1.shape[1] * 100))
         diff = (Q1 - Q2)
         diff_pos = diff - np.min(diff)  # shift to posetive
